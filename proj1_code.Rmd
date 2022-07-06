@@ -1,0 +1,1012 @@
+---
+title: "Untitled"
+author: "Peiran Zhang"
+date: "2022/7/6"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+Sys.setenv(LANG="ENG.UK")
+rm(list = ls())
+gc()
+```
+
+Loading the required libraries.
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(gridExtra)
+library(dplyr)
+library(bnlearn)
+library(Rgraphviz)
+library(MASS)
+```
+
+Codes of Section 3 (Exploratory Data Analysis)
+```{r, fig.width=5}
+## load the whole easySHARE dataset and extract those in wave 5
+load("easySHARE.rda")
+wave5 = easySHARE_rel8_0_0[easySHARE_rel8_0_0$wave==5,]
+
+## we only want to study the following variables
+vbs = c("female","age", "isced1997_r", "hhsize", "partnerinhh", "mother_alive", "father_alive", "ch001_", "ch021_mod", "sp002_mod", "chronic_mod", "eurod", "br010_mod", "adla", "iadlza","mobilityind", "bmi2", "br015_", "smoking", "recall_1", "recall_2", "numeracy_1", "numeracy_2")
+wave5 = wave5[vbs]
+
+## we focus on those older than or at 60 years old
+wave5 = wave5[wave5$age >= 60,]
+
+## print the summary of current data
+summary(wave5)
+
+## deal with unrealistic number of grandchildren (Section 3.1)
+wave5$ch021_mod = ifelse((wave5$ch021_mod/wave5$ch001_)>17,-99,wave5$ch021_mod)
+
+################### Section 3.2 ###################
+## deal with missing values 
+# loop to replace the -9 with 0, and other negative value with NA
+for (i in 1:length(vbs)) {
+  v.name = vbs[i]
+  mid.var = wave5[v.name]
+  mid.var[mid.var == -9] = 0
+  mid.var[mid.var < 0] = NA
+  wave5[v.name] = mid.var
+}
+
+################### Section 3.3 ###################
+## some binary variables have strange codes which need to be converted
+wave5$partnerinhh[wave5$partnerinhh==3] = 0
+wave5$mother_alive[wave5$mother_alive==5] = 0
+wave5$father_alive[wave5$fathe_alive==5] = 0
+wave5$sp002_mod[wave5$sp002_mod==5] = 0
+wave5$smoking[wave5$smoking==5] = 0
+
+################### Section 3.4 ###################
+## create a new variable, soc_sup, to represent the social support situation
+wave5$soc_con = wave5$hhsize + wave5$partnerinhh +
+  wave5$mother_alive + wave5$father_alive + wave5$ch001_ + wave5$ch021_mod + wave5$sp002_mod
+
+
+## drop other social support variables
+wave5 = subset(wave5, select = -c(hhsize, partnerinhh, 
+                  mother_alive, father_alive,
+                   ch001_, ch021_mod, sp002_mod))
+
+## create a new variable, numeracy, combining two numeracy scores
+numeracy = rep(NA,dim(wave5)[1])
+# if numeracy_1 and numeracy_2 are not missing, get their average values
+numeracy[!is.na(wave5$numeracy_1) & !is.na(wave5$numeracy_2)] = (wave5$numeracy_1[!is.na(wave5$numeracy_1) & !is.na(wave5$numeracy_2)] + wave5$numeracy_2[!is.na(wave5$numeracy_1) & !is.na(wave5$numeracy_2)] )/2
+# if one of the variables are missing, use the left ones
+numeracy[!is.na(wave5$numeracy_1) & is.na(wave5$numeracy_2)] = wave5$numeracy_1[!is.na(wave5$numeracy_1) & is.na(wave5$numeracy_2)]
+numeracy[is.na(wave5$numeracy_1) & !is.na(wave5$numeracy_2)] = wave5$numeracy_2[is.na(wave5$numeracy_1) & !is.na(wave5$numeracy_2)]
+
+wave5$numeracy = numeracy
+
+wave5 = subset(wave5, select = -c(numeracy_1, numeracy_2))
+
+## create a new variable, cogscore, to represent the cognitive function status
+cogscore = rep(NA,dim(wave5)[1])
+cogscore = wave5$recall_1 + wave5$recall_2 + wave5$numeracy
+wave5$cogscore = cogscore
+
+## create a new variable, funscore, to represent the ability of performing daily physical tasks
+funscore = rep(NA,dim(wave5)[1])
+funscore = wave5$adla + wave5$iadlza + wave5$mobilityind
+wave5$funscore = funscore
+
+## rename some variables
+wave5 <- wave5 %>% rename(education = isced1997_r)
+wave5 <- wave5 %>% rename(drinking = br010_mod)
+wave5 <- wave5 %>% rename(do_act = br015_)
+
+## turn some variables into factors directly
+wave5$female = factor(wave5$female)
+wave5$education = factor(wave5$education)
+wave5$drinking = factor(wave5$drinking)
+wave5$bmi2 = factor(wave5$bmi2, ordered = T)
+wave5$do_act = factor(wave5$do_act)
+wave5$smoking = factor(wave5$smoking, ordered = T)
+
+################### Section 3.4 ###################
+## some bar plots for categorical variables (Figure 1)
+pg1 = ggplot() + 
+  geom_bar(aes(x = wave5$female),color="darkblue", fill="lightblue")+
+  labs(x ="Gender")
+pe1 = ggplot() + 
+  geom_bar(aes(x = wave5$education),color="darkblue", fill="lightblue")+
+  labs(x ="Education")
+pdb1 = ggplot() + 
+  geom_bar(aes(x = wave5$drinking),color="darkblue", fill="lightblue")+
+  labs(x ="Drinking behavior")
+pb1 = ggplot() + 
+  geom_bar(aes(x = wave5$bmi2),color="darkblue", fill="lightblue")+
+  labs(x ="BMI type")
+pda1 = ggplot() + 
+  geom_bar(aes(x = wave5$do_act),color="darkblue", fill="lightblue")+
+  labs(x ="Doing activities")
+ps1 = ggplot() + 
+  geom_bar(aes(x = wave5$smoking),color="darkblue", fill="lightblue")+
+  labs(x ="Smoking")
+grid.arrange(pg1, pe1, pdb1, pb1, pda1, ps1, nrow = 2)
+
+
+## convert drinking into an ordered factor and combine some levels
+wave5$drinking[wave5$drinking ==2 | wave5$drinking ==3] =2
+wave5$drinking[wave5$drinking ==4 | wave5$drinking ==5] =3
+wave5$drinking[wave5$drinking ==6 | wave5$drinking ==7] =4
+wave5$drinking = factor(wave5$drinking,order = T)
+
+## convert education into an ordered factor and combine some levels, combine 1 and 2 into basic education, 3 and 4 into secondary education, 5 and 6 into tertiary education, others into NA
+wave5$education[wave5$education ==1 | wave5$education ==2] =1
+wave5$education[wave5$education ==3 | wave5$education ==4] =2
+wave5$education[wave5$education ==5 | wave5$education ==6] =3
+wave5$education[wave5$education ==97 | wave5$education ==95] =NA
+wave5$education = factor(wave5$education,order = T)
+
+## due to the imbalanced distribution of do_act, we combine level 2 and 3 as doing sports seldom 
+wave5$do_act <- ifelse(wave5$do_act == 3, 2, wave5$do_act)
+wave5$do_act <- ifelse(wave5$do_act == 4, 3, wave5$do_act)
+wave5$do_act <- factor(wave5$do_act, ordered = T)
+
+## some bar plots for discrete variables (Figure 2)
+pg2 = ggplot() + 
+  geom_bar(aes(x = wave5$female),color="darkblue", fill="lightblue")+
+  labs(x ="Gender")
+pe2 = ggplot() + 
+  geom_bar(aes(x = wave5$education),color="darkblue", fill="lightblue")+
+  labs(x ="Education")
+pdb2 = ggplot() + 
+  geom_bar(aes(x = wave5$drinking),color="darkblue", fill="lightblue")+
+  labs(x ="Drinking behavior")
+pb2 = ggplot() + 
+  geom_bar(aes(x = wave5$bmi2),color="darkblue", fill="lightblue")+
+  labs(x ="BMI type")
+pda2 = ggplot() + 
+  geom_bar(aes(x = wave5$do_act),color="darkblue", fill="lightblue")+
+  labs(x ="Doing activities")
+ps2 = ggplot() + 
+  geom_bar(aes(x = wave5$smoking),color="darkblue", fill="lightblue")+
+  labs(x ="Smoking")
+grid.arrange(pg2, pe2, pdb2, pb2, pda2, ps2, nrow = 2)
+
+################### Section 3.6 ###################
+## histograms for continuous variables (Figure 3)
+pa1 = ggplot() +
+  geom_histogram(aes(x=wave5$age), color="darkblue", fill="lightblue") +
+  labs(x ="Age")
+
+pcs1 = ggplot() +
+  geom_histogram(aes(x=wave5$cogscore), color="darkblue", fill="lightblue") +
+  labs(x ="Cognitive score")
+
+## some bar plots for discrete variables (Figure 3)
+pcd1 = ggplot() +
+  geom_bar(aes(x=wave5$chronic_mod), color="darkblue", fill="lightblue") + 
+labs(x ="Chronic disease")
+pds1 = ggplot() +
+  geom_bar(aes(x=wave5$eurod), color="darkblue", fill="lightblue") +
+  labs(x ="Depression scale")
+psc1 = ggplot() +
+  geom_bar(aes(x=wave5$soc_con), color="darkblue", fill="lightblue") +
+  labs(x ="Social contact")
+pfs1 = ggplot() +
+  geom_bar(aes(x=wave5$funscore), color="darkblue", fill="lightblue") +
+  labs(x ="Function score")
+
+grid.arrange(pa1, pcd1, pds1, psc1, pcs1, pfs1, nrow = 2)
+
+## due to the imbalanced distribution of eurod, we combine all observations greater than 4 as level 4, and make the variable an ordered factor
+wave5$eurod <- ifelse(wave5$eurod > 4, 4, wave5$eurod)
+wave5$eurod <- factor(wave5$eurod, order = T)
+# rename
+wave5 <- wave5 %>% rename(depression = eurod)
+
+## due to the imbalanced distribution of chronic_mod, We set three levels for the number of chronic diseases: 0 (healthy), 1 (one disease) and 2 (more than one diseases)
+wave5$chronic_mod <- ifelse(wave5$chronic_mod > 2, 2, wave5$chronic_mod)
+wave5$chronic_mod <- factor(wave5$chronic_mod, order = T)
+
+## print the summary of soc_con
+summary(wave5$soc_con)
+# due to the imbalanced distribution of soc_con, we set 2 levels for it: 0 (little social contact) and 1 (enough social contact)
+# the threshold is the median, 12
+wave5$soc_con <- ifelse(wave5$soc_con > 12, 1, 0)
+wave5$soc_con <- factor(wave5$soc_con, ordered = T)
+
+## due to the imbalanced distribution of funscore, we set 2 levels: 0 (normal) and 1 (difficult)
+wave5$funscore <- ifelse(wave5$funscore == 0, 0, 1)
+wave5$funscore <- factor(wave5$funscore, ordered = T)
+
+################### Section 3.7 ###################
+
+## violin plots for categorical variables and cognitive score (Figure 4)
+
+# index of observations that are not missing in the corresponding variables
+inde <- !is.na(wave5$education)
+inddb <- !is.na(wave5$drinking)
+indb <- !is.na(wave5$bmi2)
+indda <- !is.na(wave5$do_act)
+inds <- !is.na(wave5$smoking)
+
+pg3 <- ggplot(wave5, aes(x=female, y=cogscore, fill=female)) + 
+  geom_violin(trim = FALSE) + labs(x ="Gender")
+pe3 <- ggplot(wave5[inde,], aes(x=education, y=cogscore, fill=education)) +
+  geom_violin(trim = FALSE) + labs(x ="Education")
+pdb3 <- ggplot(wave5[inddb,], aes(x=drinking, y=cogscore, fill=drinking)) + 
+  geom_violin(trim = FALSE) + labs(x ="Drinking behavior")
+pb3 <- ggplot(wave5[indb,], aes(x=bmi2, y=cogscore, fill=bmi2)) + 
+  geom_violin(trim = FALSE) + labs(x ="BMI type")
+pda3 <- ggplot(wave5[indda,], aes(x=do_act, y=cogscore, fill=do_act)) + 
+  geom_violin(trim = FALSE) + labs(x ="Doing activities")
+ps3 <- ggplot(wave5[inds,], aes(x=smoking, y=cogscore, fill=smoking)) + 
+  geom_violin(trim = FALSE) + labs(x ="Smoking")
+grid.arrange(pg3, pe3, pdb3, pb3, pda3, ps3, nrow = 2)
+
+## next, we convert continuous variables into factors
+wave5$age <- cut(wave5$age, breaks = c(seq(60,85,5),105), ordered_result = TRUE, right = FALSE)
+wave5$cogscore <- cut(wave5$cogscore, breaks = c(0,quantile(wave5$cogscore, probs = c(.1,.4),na.rm=TRUE),max(wave5$cogscore, na.rm = TRUE)+1), 
+                         ordered_result = TRUE, right = FALSE)
+
+## plot some stacked bar plots for new factor variables
+# the index of observations that are not missing for the corresponding variables
+indcs <- !is.na(wave5$cogscore)
+indcc <- !is.na(wave5$chronic_mod) & !is.na(wave5$cogscore)
+indds <- !is.na(wave5$depression) & !is.na(wave5$cogscore)
+indsc <- !is.na(wave5$soc_con) & !is.na(wave5$cogscore)
+indfs <- !is.na(wave5$funscore) & !is.na(wave5$cogscore)
+# stacked bar plots
+pa2.1 = ggplot(wave5[indcs,], aes(x = age, fill = cogscore)) + 
+  geom_bar() + labs(x ="Age")
+pa2.2 = ggplot(wave5[indcs,], aes(x = age, fill = cogscore)) + 
+  geom_bar(position = "fill") + labs(x ="Age", y = "proportion")
+pcd2.1 = ggplot(wave5[indcc,], aes(x = chronic_mod, fill = cogscore)) + 
+  geom_bar() + labs(x ="Chronic disease")
+pcd2.2 = ggplot(wave5[indcc,], aes(x = chronic_mod, fill = cogscore)) + 
+  geom_bar(position = "fill") + labs(x ="Chronic disease",  y = "proportion")
+pds2.1 = ggplot(wave5[indds,], aes(x = depression, fill = cogscore)) + 
+  geom_bar() + labs(x ="Depression")
+pds2.2 = ggplot(wave5[indds,], aes(x = depression, fill = cogscore)) + 
+  geom_bar(position = "fill") + labs(x ="Depression",  y = "proportion")
+psc2.1 = ggplot(wave5[indsc,], aes(x = soc_con, fill = cogscore)) + 
+  geom_bar() + labs(x ="Social contact")
+psc2.2 = ggplot(wave5[indsc,], aes(x = soc_con, fill = cogscore)) + 
+  geom_bar(position = "fill") + labs(x ="Social contact",  y = "proportion")
+pfs2.1 = ggplot(wave5[indfs,], aes(x = funscore, fill = cogscore)) + 
+  geom_bar() + labs(x ="Funtion score")
+pfs2.2 = ggplot(wave5[indfs,], aes(x = funscore, fill = cogscore)) + 
+  geom_bar(position = "fill") + labs(x ="Funtion score",  y = "proportion")
+grid.arrange(pa2.1, pa2.2, pcd2.1, pcd2.2, pds2.1, pds2.2, psc2.1, psc2.2, pfs2.1, pfs2.2, nrow = 5)
+
+## drop some redundant variables
+wave5.fin = subset(wave5, select = -c(adla, iadlza, 
+                  mobilityind, recall_1,
+                   recall_2, numeracy))
+
+```
+
+```{r}
+ind13.1 <- !is.na(wave5$depression) & !is.na(wave5$female)
+p13.1 = ggplot(wave5[ind13.1,], aes(x = depression, fill = female)) + 
+  geom_bar()
+p13.1
+```
+
+
+
+Bayesian network code
+```{r, fig.width=5}
+## black list
+myblacklist = matrix(c(
+                   "female","age",
+                   "education","age",
+                   "smoking","age",
+                   "chronic_mod","age",
+                   "drinking","age",
+                   "bmi2","age",
+                   "do_act","age",
+                   "soc_con","age",
+                   "funscore","age",
+                   "cogscore","age",
+                   "age","female",
+                   "education","female",
+                   "smoking","female",
+                   "chronic_mod","female",
+                   "drinking","female",
+                   "bmi2","female",
+                   "do_act","female",
+                   "soc_con","female",
+                   "funscore","female",                   
+                   "cogscore","female",
+                   "smoking","education",
+                   "chronic_mod","education",
+                   "drinking","education",
+                   "bmi2","education",
+                   "do_act","education",
+                   "soc_con","education",
+                   "funscore","education",                         
+                   "cogscore","education",
+                   "bmi2", "smoking",
+                   "funscore", "chronic_mod"), 
+                 byrow = TRUE, ncol=2, dimnames =list(NULL,c("from","to")))
+## ci tests
+ci.test("female", "education", test = "mi", data = wave5.fin)
+ci.test("soc_con", "depression", test = "jt", data = wave5.fin)
+ci.test("smoking", "depression", test = "jt", data = wave5.fin)
+ci.test("smoking", "cogscore", test = "jt", data = wave5.fin)
+ci.test("do_act", "bmi2", test = "jt", data = wave5.fin)
+ci.test("drinking", "bmi2", test = "jt", data = wave5.fin)
+ci.test("soc_con", "female", test = "mi", data = wave5.fin)
+ci.test("depression", "cogscore", test = "jt", data = wave5.fin)
+ci.test("smoking", "chronic_mod", test = "jt", data = wave5.fin)
+ci.test("do_act", "chronic_mod", test = "jt", data = wave5.fin)
+ci.test("bmi2", "cogscore", test = "jt", data = wave5.fin)
+ci.test("age", "funscore", test = "jt", data = wave5.fin)
+ci.test("female", "do_act", test = "mi", data = wave5.fin)
+ci.test("age", "do_act", test = "jt", data = wave5.fin)
+## white list
+mywhitelist = matrix(c(
+                   "female", "education",
+                   #"soc_con", "depression",
+                   "smoking", "depression",
+                   #"smoking", "cogscore",
+                   "do_act", "bmi2",
+                   "drinking", "bmi2",
+                   "female", "soc_con",
+                   "depression", "cogscore",
+                   "smoking", "chronic_mod",
+                   "do_act", "chronic_mod",
+                   #"bmi2", "cogscore",
+                   "age", "funscore",
+                   "female", "do_act",
+                   "age", "education",
+                   "age", "do_act",
+                   "female", "cogscore",
+                   "do_act", "funscore",
+                   "age", "cogscore",
+                   "age","soc_con",
+                   "female", "smoking"
+               ), 
+                 byrow = TRUE, ncol=2, dimnames =list(NULL,c("from","to")))
+## learn structure of DAG
+wave5.iamb =iamb(wave5.fin, whitelist = mywhitelist,blacklist = myblacklist)
+graphviz.plot(wave5.iamb)
+# wave5.pc =pc.stable(wave5.fin, whitelist = mywhitelist,blacklist = myblacklist)
+# graphviz.plot(wave5.pc)
+# wave5.gs =gs(wave5.fin, whitelist = mywhitelist,blacklist = myblacklist)
+# graphviz.plot(wave5.gs)
+# wave5.fiamb =fast.iamb(wave5.fin, whitelist = mywhitelist,blacklist = myblacklist)
+# graphviz.plot(wave5.fiamb)
+# wave5.int =inter.iamb(wave5.fin, whitelist = mywhitelist,blacklist = myblacklist)
+# graphviz.plot(wave5.int)
+# wave5.fdr =iamb.fdr(wave5.fin, whitelist = mywhitelist,blacklist = myblacklist)
+# graphviz.plot(wave5.fdr)
+# wave5.mmpc =mmpc(wave5.fin, whitelist = mywhitelist,blacklist = myblacklist)
+# graphviz.plot(wave5.mmpc)
+# wave5.si =si.hiton.pc(wave5.fin, whitelist = mywhitelist,blacklist = myblacklist)
+# graphviz.plot(wave5.si)
+# wave5.hpc =hpc(wave5.fin, whitelist = mywhitelist,blacklist = myblacklist)
+# graphviz.plot(wave5.hpc)
+## bn.fit
+bn.bayes = bn.fit(wave5.iamb, data=wave5.fin, method = "bayes", iss = 10)
+```
+
+
+```{r, fig.width=7}
+p1 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes$cogscore$prob[,1,,1,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, No education, No depression, No smoking")
+
+
+p2 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes$cogscore$prob[,2,,1,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, No education, No depression, No smoking")
+
+p3 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes$cogscore$prob[,1,,2,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, Primary education, No depression, No smoking")
+
+p4 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes$cogscore$prob[,2,,2,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Primary education, No depression, No smoking")
+p5 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes$cogscore$prob[,1,,3,3,2]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, Gaodeng education, Depression 3, Smoking")
+
+
+p6 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes$cogscore$prob[,2,,3,3,2]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Gaodeng education, Depression 3, Smoking")
+
+p7 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes$cogscore$prob[,1,,3,4,2]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, Gaodeng education, Depressed, Smoking")
+
+p8 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes$cogscore$prob[,2,,3,4,2]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Gaodeng education, Depressed, Smoking")
+grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, nrow = 4)
+```
+
+
+custom fit
+```{r}
+dim(bn.bayes$cogscore$prob)
+# 3:cogscore 2:female 7:age 4: education 5:depression 4:bmi2 2:smoking
+```
+
+
+```{r}
+dim(bn.bayes$cogscore$prob)
+# 3:cogscore 2:female 6:age 4: education 5:depression 4:drinking
+```
+```{r}
+olr.fitf =polr(cogscore ~ age + education + depression + drinking, data = wave5.fin[wave5.fin$female==1,])
+olr.fitm =polr(cogscore ~ age + education + depression + drinking, data = wave5.fin[wave5.fin$female==0,])
+edu.lv = levels(wave5.fin$education)
+age.lv = levels(wave5.fin$age)
+f.lv = levels(wave5.fin$female)
+d.lv = levels(wave5.fin$depression)
+dr.lv = levels(wave5.fin$drinking)
+cs.lv = levels(wave5.fin$cogscore)
+
+combos = data.frame(
+age=rep(age.lv, length(edu.lv)),
+education=rep(edu.lv,each = length(age.lv)),
+depression=rep(d.lv, each =
+length(age.lv)*length(edu.lv)),
+drinking=rep(dr.lv, each =
+length(age.lv)*length(edu.lv)*length(d.lv))
+)
+distcsf = predict(olr.fitf, newdata= combos ,type="p")
+distcsm = predict(olr.fitm, newdata= combos ,type="p")
+distcs = array(dim = c(length(cs.lv), length(f.lv), length(age.lv), length(edu.lv), length(d.lv), length(dr.lv)), dimnames = list(cogscore = cs.lv, female = f.lv,  age = age.lv, education = edu.lv, depression = d.lv, drinking = dr.lv))
+distcs[,1,,,,] = array(t(distcsm), dim=c(length(cs.lv),1, length(age.lv),  length(edu.lv), length(d.lv), length(dr.lv)))
+distcs[,2,,,,] = array(t(distcsf), dim=c(length(cs.lv),1, length(age.lv),  length(edu.lv), length(d.lv), length(dr.lv)))
+
+bn.bayes2 = bn.bayes
+bn.bayes2$cogscore = distcs
+
+#bn.fit.barchart(bn.bayes2$cogscore)
+```
+
+```{r}
+p1 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,1,,1,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, No education, No depression, No drinking")
+
+
+p2 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,2,,1,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, No education, No depression, No drinking")
+
+p3 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,1,,2,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, Basic education, No depression, No drinking")
+
+p4 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,2,,2,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Basic education, No depression, No drinking")
+p5 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,1,,3,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, Secondary education, No depression, No drinking")
+
+p6 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,2,,3,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Secondary education, No depression, No drinking")
+p7 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,1,,4,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, Tertiary education, No depression, No drinking")
+
+p8 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,2,,4,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Tertiary education, No depression, No drinking")
+```
+
+
+```{r,fig.width=5}
+grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8,  nrow = 4)
+```
+
+```{r}
+bn.bayes2$cogscore$prob[,1,,1,1,1]
+bn.bayes2$cogscore$prob[,1,,2,1,1]
+bn.bayes2$cogscore$prob[,1,,3,1,1]
+bn.bayes2$cogscore$prob[,1,,4,1,1]
+# bn.bayes2$cogscore$prob[,1,,1,1,1][3,]/(bn.bayes2$cogscore$prob[,1,,1,1,1][2,]+bn.bayes2$cogscore$prob[,1,,1,1,1][1,])
+# bn.bayes2$cogscore$prob[,1,,2,1,1][3,]/(bn.bayes2$cogscore$prob[,1,,2,1,1][2,]+bn.bayes2$cogscore$prob[,1,,2,1,1][1,])
+# bn.bayes2$cogscore$prob[,1,,3,1,1][3,]/(bn.bayes2$cogscore$prob[,1,,3,1,1][2,]+bn.bayes2$cogscore$prob[,1,,3,1,1][1,])
+# bn.bayes2$cogscore$prob[,1,,4,1,1][3,]/(bn.bayes2$cogscore$prob[,1,,4,1,1][2,]+bn.bayes2$cogscore$prob[,1,,4,1,1][1,])
+```
+
+```{r}
+bn.bayes2$cogscore$prob[,2,,1,1,1]
+bn.bayes2$cogscore$prob[,2,,2,1,1]
+bn.bayes2$cogscore$prob[,2,,3,1,1]
+bn.bayes2$cogscore$prob[,2,,4,1,1]
+# bn.bayes2$cogscore$prob[,2,,1,1,1][3,]/(bn.bayes2$cogscore$prob[,2,,1,1,1][2,]+bn.bayes2$cogscore$prob[,1,,1,1,1][1,])
+# bn.bayes2$cogscore$prob[,2,,2,1,1][3,]/(bn.bayes2$cogscore$prob[,2,,2,1,1][2,]+bn.bayes2$cogscore$prob[,2,,2,1,1][1,])
+# bn.bayes2$cogscore$prob[,2,,3,1,1][3,]/(bn.bayes2$cogscore$prob[,2,,3,1,1][2,]+bn.bayes2$cogscore$prob[,1,,3,1,1][1,])
+# bn.bayes2$cogscore$prob[,2,,4,1,1][3,]/(bn.bayes2$cogscore$prob[,2,,4,1,1][2,]+bn.bayes2$cogscore$prob[,2,,4,1,1][1,])
+```
+
+```{r}
+(bn.bayes2$cogscore$prob[,2,,2,1,1] - bn.bayes2$cogscore$prob[,2,,1,1,1])/bn.bayes2$cogscore$prob[,2,,1,1,1]
+```
+
+
+```{r,fig.width=7}
+p9 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,1,,2,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, Basic education, No Depression, No drinking")
+
+
+p10 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,2,,2,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Basic education, No Depression, No drinking")
+
+p11 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,1,,2,2,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, Basic education, Slight Depression, No drinking")
+
+p12 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,2,,2,2,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Basic education,Slight Depression, No drinking")
+p13 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,1,,2,3,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, Basic education, Mild Depression, No drinking")
+
+p14 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,2,,2,3,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Basic education,Mild Depression, No drinking")
+p15 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,1,,2,4,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, Basic education, Moderate Depression, No drinking")
+
+p16 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,2,,2,4,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Basic education,Moderate Depression, No drinking")
+p17 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,1,,2,5,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, Basic education, Severe Depression, No drinking")
+
+p18 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,2,,2,5,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Basic education,Severe Depression, No drinking")
+grid.arrange(p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, nrow = 5)
+#grid.arrange(p11, p13, nrow = 1)
+```
+```{r}
+bn.bayes2$cogscore$prob[,1,,2,1,1]
+bn.bayes2$cogscore$prob[,1,,2,2,1]
+bn.bayes2$cogscore$prob[,1,,2,3,1]
+bn.bayes2$cogscore$prob[,1,,2,4,1]
+bn.bayes2$cogscore$prob[,1,,2,5,1]
+```
+```{r}
+bn.bayes2$cogscore$prob[,2,,2,1,1]
+bn.bayes2$cogscore$prob[,2,,2,2,1]
+bn.bayes2$cogscore$prob[,2,,2,3,1]
+bn.bayes2$cogscore$prob[,2,,2,4,1]
+bn.bayes2$cogscore$prob[,2,,2,5,1]
+```
+
+
+```{r,fig.width=5}
+p17 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,1,,2,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, Basic education, No Depression, No Drinking")
+
+
+p18 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,2,,2,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Basic education, No Depression, No Drinking")
+
+p19 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,1,,2,1,2]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, Basic education, No Depression, Rarely")
+
+p20 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,2,,2,1,2]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Basic education,No Depression, Rarely")
+p21 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,1,,2,1,3]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, Basic education, No Depression, Sometimes")
+
+p22 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,2,,2,1,3]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Basic education,No Depression, Sometimes")
+p23 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,1,,2,1,4]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, Basic education, No Depression, Often")
+
+p24 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$cogscore$prob[,2,,2,1,4]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Basic education,No Depression, Often")
+grid.arrange(p17, p18, p19, p20, p21, p22, p23, p24, nrow = 4)
+#grid.arrange(p11, p13, nrow = 1)
+```
+```{r}
+bn.bayes2$cogscore$prob[,1,,2,1,1]
+bn.bayes2$cogscore$prob[,1,,2,1,2]
+bn.bayes2$cogscore$prob[,1,,2,1,3]
+bn.bayes2$cogscore$prob[,1,,2,1,4]
+```
+
+```{r}
+(bn.bayes2$cogscore$prob[,2,,2,1,1][3,]-bn.bayes2$cogscore$prob[,2,,2,1,1][1,])/bn.bayes2$cogscore$prob[,2,,2,1,1][1,]
+(bn.bayes2$cogscore$prob[,2,,2,1,2][3,]-bn.bayes2$cogscore$prob[,2,,2,1,2][1,])/bn.bayes2$cogscore$prob[,2,,2,1,2][1,]
+(bn.bayes2$cogscore$prob[,2,,2,1,3][3,]-bn.bayes2$cogscore$prob[,2,,2,1,3][1,])/bn.bayes2$cogscore$prob[,2,,2,1,3][1,]
+(bn.bayes2$cogscore$prob[,2,,2,1,4][3,]-bn.bayes2$cogscore$prob[,2,,2,1,4][1,])/bn.bayes2$cogscore$prob[,2,,2,1,4][1,]
+
+```
+
+```{r}
+bn.bayes2$cogscore$prob[,1,,2,1,1]
+bn.bayes2$cogscore$prob[,1,,2,1,2]
+bn.bayes2$cogscore$prob[,1,,2,1,3]
+bn.bayes2$cogscore$prob[,1,,2,1,4]
+```
+
+```{r}
+(bn.bayes2$cogscore$prob[,1,,2,1,1][,2]-bn.bayes2$cogscore$prob[,1,,2,1,1][,1])/bn.bayes2$cogscore$prob[,1,,2,1,1][,1]
+(bn.bayes2$cogscore$prob[,1,,2,1,1][,3]-bn.bayes2$cogscore$prob[,1,,2,1,1][,2])/bn.bayes2$cogscore$prob[,1,,2,1,1][,2]
+(bn.bayes2$cogscore$prob[,1,,2,1,1][,4]-bn.bayes2$cogscore$prob[,1,,2,1,1][,3])/bn.bayes2$cogscore$prob[,1,,2,1,1][,3]
+(bn.bayes2$cogscore$prob[,1,,2,1,1][,5]-bn.bayes2$cogscore$prob[,1,,2,1,1][,4])/bn.bayes2$cogscore$prob[,1,,2,1,1][,4]
+bn.bayes2$cogscore$prob[,1,,2,1,2]
+bn.bayes2$cogscore$prob[,1,,2,1,3]
+bn.bayes2$cogscore$prob[,1,,2,1,4]
+```
+
+
+```{r}
+olr.fitn =polr(chronic_mod ~ age + bmi2 + do_act, data = wave5.fin[wave5.fin$smoking==0,])
+olr.fits =polr(chronic_mod ~ age + bmi2 + do_act, data = wave5.fin[wave5.fin$smoking==1,])
+c.lv = levels(wave5.fin$chronic_mod)
+b.lv = levels(wave5.fin$bmi2)
+age.lv = levels(wave5.fin$age)
+do.lv = levels(wave5.fin$do_act)
+s.lv = levels(wave5.fin$smoking)
+
+combos = data.frame(
+age=rep(age.lv, length(b.lv)),
+bmi2=rep(b.lv,each = length(age.lv)),
+do_act=rep(do.lv, each =
+length(age.lv)*length(b.lv)))
+
+distcsn = predict(olr.fitn, newdata= combos ,type="p")
+distcss = predict(olr.fits, newdata= combos ,type="p")
+distcs = array(dim = c(length(c.lv), length(age.lv), length(b.lv), length(do.lv), length(s.lv)), dimnames = list(chronic_mod = c.lv, age = age.lv, bmi2 = b.lv, do_act = do.lv, smoking = s.lv))
+distcs[,,,,1] = array(t(distcsn), dim=c(length(c.lv), length(age.lv), length(b.lv), length(do.lv), 1))
+distcs[,,,,2] = array(t(distcsn), dim=c(length(c.lv), length(age.lv), length(b.lv), length(do.lv), 1))
+
+bn.bayes2$chronic_mod = distcs
+
+#bn.fit.barchart(bn.bayes2$cogscore)
+```
+
+
+
+
+```{r}
+p25 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$chronic_mod$prob[,,2,1,1]), ncol =1), color = rep(levels(wave5.fin$chronic_mod), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Chronic Disease", title ="BMI Normal, Do activities often, No smoking")
+p26 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$chronic_mod$prob[,,2,2,1]), ncol =1), color = rep(levels(wave5.fin$chronic_mod), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Chronic Disease", title ="BMI Normal, Do activities seldom, No smoking")
+p27 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$chronic_mod$prob[,,2,3,1]), ncol =1), color = rep(levels(wave5.fin$chronic_mod), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Chronic Disease", title ="BMI Normal, Never Do activities, No smoking")
+grid.arrange(p25, p26, p27, nrow = 3)
+```
+
+0: healthy/no disease; 1: only one disease; 2: more than one disease
+
+```{r, fig.width=5}
+p28 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$chronic_mod$prob[,,1,1,1]), ncol =1), color = rep(levels(wave5.fin$chronic_mod), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Chronic Disease", title ="Underweight, Do activities seldom, No smoking")
+p29 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$chronic_mod$prob[,,2,1,1]), ncol =1), color = rep(levels(wave5.fin$chronic_mod), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Chronic Disease", title ="Normal, Do activities seldom, No smoking")
+p30 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$chronic_mod$prob[,,3,1,1]), ncol =1), color = rep(levels(wave5.fin$chronic_mod), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Chronic Disease", title ="Overweight, Do activities seldom, No smoking")
+p31 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
+                     y=matrix(t(bn.bayes2$chronic_mod$prob[,,4,1,1]), ncol =1), color = rep(levels(wave5.fin$chronic_mod), each = length(levels(wave5.fin$age))))) + 
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
+        labels=levels(wave5.fin$age)) +
+  labs(x = "Age", y= "Conditional probability", color = "Chronic Disease", title ="Obese, Do activities seldom, No smoking")
+grid.arrange(p28, p29, p30, p31, nrow = 4)
+```
+
+
+```{r, fig.width=7}
+bn.fit.barchart(bn.bayes$drinking)
+```
+
+
+```{r, fig.width=7}
+bn.fit.barchart(bn.bayes$bmi2)
+```
+
+
+do more activities, more normal weight and less overweight and less obese.
+drink more, different effects for people with different do_act levels.
+
+```{r}
+bn.fit.barchart(bn.bayes$depression)
+```
+
+lvse wei smoking, huangse wei xingbie
+
+Smoking increases the probability of being level 4 for men, but not so obvious for women, only increases level 1. The most interesting thing is that depression more prevalent in women, women tends to have higher probability of high level depression
+
+```{r, fig.width=7}
+bn.fit.barchart(bn.bayes$education)
+```
+
+```{r, fig.width=7}
+bn.fit.barchart(bn.bayes$soc_con)
+```
+suanle zhege buhao jieshi
+```{r}
+library(gRain)
+junction = compile(as.grain(bn.bayes2))
+```
+
+```{r, fig.width=13}
+graphviz.chart(bn.bayes2, grid = TRUE, main = "Original BN")
+```
+
+```{r,fig.width=13}
+jf = setEvidence(junction, nodes = "female", states = "1")
+```
+
+```{r,fig.width=13}
+graphviz.chart(as.bn.fit(jf,including.evidence = TRUE), grid = TRUE, 
+               bar.col = c(age = "black", female = "grey", education = "black", 
+                           cogscore = "black", smoking = "black", depression = 
+                          "black", drinking = "black", bmi2 = "black", do_act 
+                        = "black", chronic_mod = "black", funscore = "black", 
+                        soc_con = "black"),
+              strip.bg = c(age = "transparent", female = "grey", education = "transparent",  cogscore = "transparent", smoking = "transparent", 
+                           depression = 
+                          "transparent", drinking = "transparent", bmi2 = "transparent", do_act 
+                        = "transparent", chronic_mod = "transparent", funscore = "transparent", 
+                        soc_con = "transparent"),
+               main = "BN with Evidence")
+```
+
+```{r,fig.width=13}
+jf2 = setEvidence(junction, nodes = "drinking", states = "1")
+jf3 = setEvidence(junction, nodes = "drinking", states = "2")
+jf4 = setEvidence(junction, nodes = "drinking", states = "3")
+jf5 = setEvidence(junction, nodes = "drinking", states = "4")
+graphviz.chart(as.bn.fit(jf2,including.evidence = TRUE), grid = TRUE, 
+               bar.col = c(age = "black", female = "black", education = "black", 
+                           cogscore = "black", smoking = "black", depression = 
+                          "black", drinking = "grey", bmi2 = "black", do_act 
+                        = "black", chronic_mod = "black", funscore = "black", 
+                        soc_con = "black"),
+              strip.bg = c(age = "transparent", female = "transparent", education = "transparent",  cogscore = "transparent", smoking = "transparent", 
+                           depression = 
+                          "transparent", drinking = "grey", bmi2 = "transparent", do_act 
+                        = "transparent", chronic_mod = "transparent", funscore = "transparent", 
+                        soc_con = "transparent"),
+               main = "BN with Evidence, drinking 1")
+```
+
+
+
+```{r,fig.width=13}
+graphviz.chart(as.bn.fit(jf3,including.evidence = TRUE), grid = TRUE, 
+               bar.col = c(age = "black", female = "black", education = "black", 
+                           cogscore = "black", smoking = "black", depression = 
+                          "black", drinking = "grey", bmi2 = "black", do_act 
+                        = "black", chronic_mod = "black", funscore = "black", 
+                        soc_con = "black"),
+              strip.bg = c(age = "transparent", female = "transparent", education = "transparent",  cogscore = "transparent", smoking = "transparent", 
+                           depression = 
+                          "transparent", drinking = "grey", bmi2 = "transparent", do_act 
+                        = "transparent", chronic_mod = "transparent", funscore = "transparent", 
+                        soc_con = "transparent"),
+               main = "BN with Evidence, drinking 2")
+
+```
+
+
+```{r,fig.width=13}
+graphviz.chart(as.bn.fit(jf4,including.evidence = TRUE), grid = TRUE, 
+               bar.col = c(age = "black", female = "black", education = "black", 
+                           cogscore = "black", smoking = "black", depression = 
+                          "black", drinking = "grey", bmi2 = "black", do_act 
+                        = "black", chronic_mod = "black", funscore = "black", 
+                        soc_con = "black"),
+              strip.bg = c(age = "transparent", female = "transparent", education = "transparent",  cogscore = "transparent", smoking = "transparent", 
+                           depression = 
+                          "transparent", drinking = "grey", bmi2 = "transparent", do_act 
+                        = "transparent", chronic_mod = "transparent", funscore = "transparent", 
+                        soc_con = "transparent"),
+               main = "BN with Evidence, drinking 3")
+
+```
+
+
+```{r, fig.width=13}
+graphviz.chart(as.bn.fit(jf5,including.evidence = TRUE), grid = TRUE, 
+               bar.col = c(age = "black", female = "black", education = "black", 
+                           cogscore = "black", smoking = "black", depression = 
+                          "black", drinking = "grey", bmi2 = "black", do_act 
+                        = "black", chronic_mod = "black", funscore = "black", 
+                        soc_con = "black"),
+              strip.bg = c(age = "transparent", female = "transparent", education = "transparent",  cogscore = "transparent", smoking = "transparent", 
+                           depression = 
+                          "transparent", drinking = "grey", bmi2 = "transparent", do_act 
+                        = "transparent", chronic_mod = "transparent", funscore = "transparent", 
+                        soc_con = "transparent"),
+               main = "BN with Evidence, drinking 4")
+```
+
+
