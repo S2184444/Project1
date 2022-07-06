@@ -23,7 +23,7 @@ library(Rgraphviz)
 library(MASS)
 ```
 
-Codes of Section 3 (Exploratory Data Analysis)
+## Section 3 (Exploratory Data Analysis)
 ```{r, fig.width=5}
 ## load the whole easySHARE dataset and extract those in wave 5
 load("easySHARE.rda")
@@ -287,7 +287,7 @@ wave5.fin = subset(wave5, select = -c(adla, iadlza,
 
 
 
-Bayesian network code (Section 5.1)
+## Bayesian network code (Section 5.1)
 ```{r, fig.width=5}
 ## black list
 myblacklist = matrix(c(
@@ -364,7 +364,7 @@ graphviz.plot(wave5.iamb)
 bn.bayes = bn.fit(wave5.iamb, data=wave5.fin, method = "bayes", iss = 10)
 ```
 
-Local distributions (Section 5.2)
+## Local distributions (Section 5.2)
 
 First, we need to use custom.fit to learn the local distributions via ordered logistic regression. 
 ```{r}
@@ -407,7 +407,7 @@ bn.bayes2$cogscore = distcs
 ```
 
 
-Plot of cognitive score and education (Section 5.2.1)
+## Plot of cognitive score and education (Section 5.2.1)
 ```{r,fig.width=5}
 p1 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
                      y=matrix(t(bn.bayes2$cogscore$prob[,1,,1,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
@@ -514,6 +514,8 @@ bn.bayes2$cogscore$prob[,1,,3,1,1][1,6] #0.1148473
 bn.bayes2$cogscore$prob[,1,,4,1,1][1,6] #0.05910975
 ```
 
+
+## Plot of cognitive score and depression (Section 5.2.2)
 ```{r,fig.width=7}
 p9 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
                      y=matrix(t(bn.bayes2$cogscore$prob[,1,,2,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
@@ -593,24 +595,40 @@ p18 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
         labels=levels(wave5.fin$age)) +
   labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Basic education,Severe Depression, No drinking")
 grid.arrange(p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, nrow = 5)
-#grid.arrange(p11, p13, nrow = 1)
 ```
+
+In all five depression levels, for males aged 85 years and older,
+the probabilities of getting low cognitive score are 18.60%/51.86%/115.45%/167.09%/364.91% higher than those of having high cognitive score.
 ```{r}
-bn.bayes2$cogscore$prob[,1,,2,1,1]
-bn.bayes2$cogscore$prob[,1,,2,2,1]
-bn.bayes2$cogscore$prob[,1,,2,3,1]
-bn.bayes2$cogscore$prob[,1,,2,4,1]
-bn.bayes2$cogscore$prob[,1,,2,5,1]
+(bn.bayes2$cogscore$prob[,1,,2,1,1][1,6]-bn.bayes2$cogscore$prob[,1,,2,1,1][3,6])/bn.bayes2$cogscore$prob[,1,,2,1,1][3,6] #0.1860001
+(bn.bayes2$cogscore$prob[,1,,2,2,1][1,6]-bn.bayes2$cogscore$prob[,1,,2,2,1][3,6])/bn.bayes2$cogscore$prob[,1,,2,2,1][3,6] #0.5186284
+(bn.bayes2$cogscore$prob[,1,,2,3,1][1,6]-bn.bayes2$cogscore$prob[,1,,2,3,1][3,6])/bn.bayes2$cogscore$prob[,1,,2,3,1][3,6] #1.154539
+(bn.bayes2$cogscore$prob[,1,,2,4,1][1,6]-bn.bayes2$cogscore$prob[,1,,2,4,1][3,6])/bn.bayes2$cogscore$prob[,1,,2,4,1][3,6] #1.670899
+(bn.bayes2$cogscore$prob[,1,,2,5,1][1,6]-bn.bayes2$cogscore$prob[,1,,2,5,1][3,6])/bn.bayes2$cogscore$prob[,1,,2,5,1][3,6] #3.649124
 ```
+
+The same situation appears among female respondents, but the numbers are slightly smaller: 11.25%/37.32%/51.12%/92.79%/289.00%.
+
 ```{r}
-bn.bayes2$cogscore$prob[,2,,2,1,1]
-bn.bayes2$cogscore$prob[,2,,2,2,1]
-bn.bayes2$cogscore$prob[,2,,2,3,1]
-bn.bayes2$cogscore$prob[,2,,2,4,1]
-bn.bayes2$cogscore$prob[,2,,2,5,1]
+(bn.bayes2$cogscore$prob[,2,,2,1,1][1,6]-bn.bayes2$cogscore$prob[,2,,2,1,1][3,6])/bn.bayes2$cogscore$prob[,2,,2,1,1][3,6] #0.1124881
+(bn.bayes2$cogscore$prob[,2,,2,2,1][1,6]-bn.bayes2$cogscore$prob[,2,,2,2,1][3,6])/bn.bayes2$cogscore$prob[,2,,2,2,1][3,6] #0.3731571
+(bn.bayes2$cogscore$prob[,2,,2,3,1][1,6]-bn.bayes2$cogscore$prob[,2,,2,3,1][3,6])/bn.bayes2$cogscore$prob[,2,,2,3,1][3,6] #0.5111639
+(bn.bayes2$cogscore$prob[,2,,2,4,1][1,6]-bn.bayes2$cogscore$prob[,2,,2,4,1][3,6])/bn.bayes2$cogscore$prob[,2,,2,4,1][3,6] #0.9279015
+(bn.bayes2$cogscore$prob[,2,,2,5,1][1,6]-bn.bayes2$cogscore$prob[,2,,2,5,1][3,6])/bn.bayes2$cogscore$prob[,2,,2,5,1][3,6] #2.890041
 ```
 
 
+The probabilities of getting low cognitive score are 94.10%/92.73%/90.11%/87.98%/79.57% lower than those of having high cognitive score among men aged between 60 and 65years in five depression levels.
+```{r}
+(bn.bayes2$cogscore$prob[,1,,2,1,1][1,1]-bn.bayes2$cogscore$prob[,1,,2,1,1][3,1])/bn.bayes2$cogscore$prob[,1,,2,1,1][3,1] #-0.9410056
+(bn.bayes2$cogscore$prob[,1,,2,2,1][1,1]-bn.bayes2$cogscore$prob[,1,,2,2,1][3,1])/bn.bayes2$cogscore$prob[,1,,2,2,1][3,1] #-0.9272565
+(bn.bayes2$cogscore$prob[,1,,2,3,1][1,1]-bn.bayes2$cogscore$prob[,1,,2,3,1][3,1])/bn.bayes2$cogscore$prob[,1,,2,3,1][3,1] #-0.9011477
+(bn.bayes2$cogscore$prob[,1,,2,4,1][1,1]-bn.bayes2$cogscore$prob[,1,,2,4,1][3,1])/bn.bayes2$cogscore$prob[,1,,2,4,1][3,1] #-0.8798459
+(bn.bayes2$cogscore$prob[,1,,2,5,1][1,1]-bn.bayes2$cogscore$prob[,1,,2,5,1][3,1])/bn.bayes2$cogscore$prob[,1,,2,5,1][3,1] #-0.7956939
+```
+
+
+## Plot of cognitive score and drinking behavior (Section 5.2.3)
 ```{r,fig.width=5}
 p17 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
                      y=matrix(t(bn.bayes2$cogscore$prob[,1,,2,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
@@ -675,255 +693,36 @@ p24 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
         labels=levels(wave5.fin$age)) +
   labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Basic education,No Depression, Often")
 grid.arrange(p17, p18, p19, p20, p21, p22, p23, p24, nrow = 4)
-#grid.arrange(p11, p13, nrow = 1)
 ```
+Taking women aged between 60 and 65 years in the selected groups as example, the probabilities of getting high cognitive score are 0.68/0.79/0.80/0.77 for drinking behavior 1/2/3/4 respectively.
 ```{r}
-bn.bayes2$cogscore$prob[,1,,2,1,1]
-bn.bayes2$cogscore$prob[,1,,2,1,2]
-bn.bayes2$cogscore$prob[,1,,2,1,3]
-bn.bayes2$cogscore$prob[,1,,2,1,4]
+bn.bayes2$cogscore$prob[,2,,2,1,1][3,1] #0.6825861
+bn.bayes2$cogscore$prob[,2,,2,1,2][3,1] #0.7946212
+bn.bayes2$cogscore$prob[,2,,2,1,3][3,1] #0.8043686
+bn.bayes2$cogscore$prob[,2,,2,1,4][3,1] #0.771251
 ```
 
+Likewise, these numbers are 0.64/0.72/0.75/0.72 for men with the same characteristics.
 ```{r}
-(bn.bayes2$cogscore$prob[,2,,2,1,1][3,]-bn.bayes2$cogscore$prob[,2,,2,1,1][1,])/bn.bayes2$cogscore$prob[,2,,2,1,1][1,]
-(bn.bayes2$cogscore$prob[,2,,2,1,2][3,]-bn.bayes2$cogscore$prob[,2,,2,1,2][1,])/bn.bayes2$cogscore$prob[,2,,2,1,2][1,]
-(bn.bayes2$cogscore$prob[,2,,2,1,3][3,]-bn.bayes2$cogscore$prob[,2,,2,1,3][1,])/bn.bayes2$cogscore$prob[,2,,2,1,3][1,]
-(bn.bayes2$cogscore$prob[,2,,2,1,4][3,]-bn.bayes2$cogscore$prob[,2,,2,1,4][1,])/bn.bayes2$cogscore$prob[,2,,2,1,4][1,]
-
+bn.bayes2$cogscore$prob[,1,,2,1,1][3,1] #0.6392302
+bn.bayes2$cogscore$prob[,1,,2,1,2][3,1] #0.7187197
+bn.bayes2$cogscore$prob[,1,,2,1,3][3,1] #0.7512143
+bn.bayes2$cogscore$prob[,1,,2,1,4][3,1] #0.7158799
 ```
 
+In our selected groups, women aged between 60 and 65 years in all four drinking behavior levels are 1490.18%/3167.10%/3409.50%/2673.23% more likely to have high cognitive score than having low cognitive score.
 ```{r}
-bn.bayes2$cogscore$prob[,1,,2,1,1]
-bn.bayes2$cogscore$prob[,1,,2,1,2]
-bn.bayes2$cogscore$prob[,1,,2,1,3]
-bn.bayes2$cogscore$prob[,1,,2,1,4]
+(bn.bayes2$cogscore$prob[,2,,2,1,1][3,1]-bn.bayes2$cogscore$prob[,2,,2,1,1][1,1])/bn.bayes2$cogscore$prob[,2,,2,1,1][1,1] #14.90182
+(bn.bayes2$cogscore$prob[,2,,2,1,2][3,1]-bn.bayes2$cogscore$prob[,2,,2,1,2][1,1])/bn.bayes2$cogscore$prob[,2,,2,1,2][1,1] #31.67096
+(bn.bayes2$cogscore$prob[,2,,2,1,3][3,1]-bn.bayes2$cogscore$prob[,2,,2,1,3][1,1])/bn.bayes2$cogscore$prob[,2,,2,1,3][1,1] #34.09499
+(bn.bayes2$cogscore$prob[,2,,2,1,4][3,1]-bn.bayes2$cogscore$prob[,2,,2,1,4][1,1])/bn.bayes2$cogscore$prob[,2,,2,1,4][1,1] #26.73226
+
 ```
 
+In contrast, the numbers for women aged between 80 and 85 years are 109.89%/397.52%/442.48%/308.16%.
 ```{r}
-(bn.bayes2$cogscore$prob[,1,,2,1,1][,2]-bn.bayes2$cogscore$prob[,1,,2,1,1][,1])/bn.bayes2$cogscore$prob[,1,,2,1,1][,1]
-(bn.bayes2$cogscore$prob[,1,,2,1,1][,3]-bn.bayes2$cogscore$prob[,1,,2,1,1][,2])/bn.bayes2$cogscore$prob[,1,,2,1,1][,2]
-(bn.bayes2$cogscore$prob[,1,,2,1,1][,4]-bn.bayes2$cogscore$prob[,1,,2,1,1][,3])/bn.bayes2$cogscore$prob[,1,,2,1,1][,3]
-(bn.bayes2$cogscore$prob[,1,,2,1,1][,5]-bn.bayes2$cogscore$prob[,1,,2,1,1][,4])/bn.bayes2$cogscore$prob[,1,,2,1,1][,4]
-bn.bayes2$cogscore$prob[,1,,2,1,2]
-bn.bayes2$cogscore$prob[,1,,2,1,3]
-bn.bayes2$cogscore$prob[,1,,2,1,4]
+(bn.bayes2$cogscore$prob[,2,,2,1,1][3,5]-bn.bayes2$cogscore$prob[,2,,2,1,1][1,5])/bn.bayes2$cogscore$prob[,2,,2,1,1][1,5] #1.098911
+(bn.bayes2$cogscore$prob[,2,,2,1,2][3,5]-bn.bayes2$cogscore$prob[,2,,2,1,2][1,5])/bn.bayes2$cogscore$prob[,2,,2,1,2][1,5] #3.975147
+(bn.bayes2$cogscore$prob[,2,,2,1,3][3,5]-bn.bayes2$cogscore$prob[,2,,2,1,3][1,5])/bn.bayes2$cogscore$prob[,2,,2,1,3][1,5] #4.424765
+(bn.bayes2$cogscore$prob[,2,,2,1,4][3,5]-bn.bayes2$cogscore$prob[,2,,2,1,4][1,5])/bn.bayes2$cogscore$prob[,2,,2,1,4][1,5] #3.081549
 ```
-
-
-```{r}
-olr.fitn =polr(chronic_mod ~ age + bmi2 + do_act, data = wave5.fin[wave5.fin$smoking==0,])
-olr.fits =polr(chronic_mod ~ age + bmi2 + do_act, data = wave5.fin[wave5.fin$smoking==1,])
-c.lv = levels(wave5.fin$chronic_mod)
-b.lv = levels(wave5.fin$bmi2)
-age.lv = levels(wave5.fin$age)
-do.lv = levels(wave5.fin$do_act)
-s.lv = levels(wave5.fin$smoking)
-
-combos = data.frame(
-age=rep(age.lv, length(b.lv)),
-bmi2=rep(b.lv,each = length(age.lv)),
-do_act=rep(do.lv, each =
-length(age.lv)*length(b.lv)))
-
-distcsn = predict(olr.fitn, newdata= combos ,type="p")
-distcss = predict(olr.fits, newdata= combos ,type="p")
-distcs = array(dim = c(length(c.lv), length(age.lv), length(b.lv), length(do.lv), length(s.lv)), dimnames = list(chronic_mod = c.lv, age = age.lv, bmi2 = b.lv, do_act = do.lv, smoking = s.lv))
-distcs[,,,,1] = array(t(distcsn), dim=c(length(c.lv), length(age.lv), length(b.lv), length(do.lv), 1))
-distcs[,,,,2] = array(t(distcsn), dim=c(length(c.lv), length(age.lv), length(b.lv), length(do.lv), 1))
-
-bn.bayes2$chronic_mod = distcs
-
-#bn.fit.barchart(bn.bayes2$cogscore)
-```
-
-
-
-
-```{r}
-p25 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
-                     y=matrix(t(bn.bayes2$chronic_mod$prob[,,2,1,1]), ncol =1), color = rep(levels(wave5.fin$chronic_mod), each = length(levels(wave5.fin$age))))) + 
-  geom_point() +
-  geom_line() +
-  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
-        labels=levels(wave5.fin$age)) +
-  labs(x = "Age", y= "Conditional probability", color = "Chronic Disease", title ="BMI Normal, Do activities often, No smoking")
-p26 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
-                     y=matrix(t(bn.bayes2$chronic_mod$prob[,,2,2,1]), ncol =1), color = rep(levels(wave5.fin$chronic_mod), each = length(levels(wave5.fin$age))))) + 
-  geom_point() +
-  geom_line() +
-  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
-        labels=levels(wave5.fin$age)) +
-  labs(x = "Age", y= "Conditional probability", color = "Chronic Disease", title ="BMI Normal, Do activities seldom, No smoking")
-p27 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
-                     y=matrix(t(bn.bayes2$chronic_mod$prob[,,2,3,1]), ncol =1), color = rep(levels(wave5.fin$chronic_mod), each = length(levels(wave5.fin$age))))) + 
-  geom_point() +
-  geom_line() +
-  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
-        labels=levels(wave5.fin$age)) +
-  labs(x = "Age", y= "Conditional probability", color = "Chronic Disease", title ="BMI Normal, Never Do activities, No smoking")
-grid.arrange(p25, p26, p27, nrow = 3)
-```
-
-0: healthy/no disease; 1: only one disease; 2: more than one disease
-
-```{r, fig.width=5}
-p28 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
-                     y=matrix(t(bn.bayes2$chronic_mod$prob[,,1,1,1]), ncol =1), color = rep(levels(wave5.fin$chronic_mod), each = length(levels(wave5.fin$age))))) + 
-  geom_point() +
-  geom_line() +
-  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
-        labels=levels(wave5.fin$age)) +
-  labs(x = "Age", y= "Conditional probability", color = "Chronic Disease", title ="Underweight, Do activities seldom, No smoking")
-p29 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
-                     y=matrix(t(bn.bayes2$chronic_mod$prob[,,2,1,1]), ncol =1), color = rep(levels(wave5.fin$chronic_mod), each = length(levels(wave5.fin$age))))) + 
-  geom_point() +
-  geom_line() +
-  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
-        labels=levels(wave5.fin$age)) +
-  labs(x = "Age", y= "Conditional probability", color = "Chronic Disease", title ="Normal, Do activities seldom, No smoking")
-p30 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
-                     y=matrix(t(bn.bayes2$chronic_mod$prob[,,3,1,1]), ncol =1), color = rep(levels(wave5.fin$chronic_mod), each = length(levels(wave5.fin$age))))) + 
-  geom_point() +
-  geom_line() +
-  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
-        labels=levels(wave5.fin$age)) +
-  labs(x = "Age", y= "Conditional probability", color = "Chronic Disease", title ="Overweight, Do activities seldom, No smoking")
-p31 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
-                     y=matrix(t(bn.bayes2$chronic_mod$prob[,,4,1,1]), ncol =1), color = rep(levels(wave5.fin$chronic_mod), each = length(levels(wave5.fin$age))))) + 
-  geom_point() +
-  geom_line() +
-  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
-        labels=levels(wave5.fin$age)) +
-  labs(x = "Age", y= "Conditional probability", color = "Chronic Disease", title ="Obese, Do activities seldom, No smoking")
-grid.arrange(p28, p29, p30, p31, nrow = 4)
-```
-
-
-```{r, fig.width=7}
-bn.fit.barchart(bn.bayes$drinking)
-```
-
-
-```{r, fig.width=7}
-bn.fit.barchart(bn.bayes$bmi2)
-```
-
-
-do more activities, more normal weight and less overweight and less obese.
-drink more, different effects for people with different do_act levels.
-
-```{r}
-bn.fit.barchart(bn.bayes$depression)
-```
-
-lvse wei smoking, huangse wei xingbie
-
-Smoking increases the probability of being level 4 for men, but not so obvious for women, only increases level 1. The most interesting thing is that depression more prevalent in women, women tends to have higher probability of high level depression
-
-```{r, fig.width=7}
-bn.fit.barchart(bn.bayes$education)
-```
-
-```{r, fig.width=7}
-bn.fit.barchart(bn.bayes$soc_con)
-```
-suanle zhege buhao jieshi
-```{r}
-library(gRain)
-junction = compile(as.grain(bn.bayes2))
-```
-
-```{r, fig.width=13}
-graphviz.chart(bn.bayes2, grid = TRUE, main = "Original BN")
-```
-
-```{r,fig.width=13}
-jf = setEvidence(junction, nodes = "female", states = "1")
-```
-
-```{r,fig.width=13}
-graphviz.chart(as.bn.fit(jf,including.evidence = TRUE), grid = TRUE, 
-               bar.col = c(age = "black", female = "grey", education = "black", 
-                           cogscore = "black", smoking = "black", depression = 
-                          "black", drinking = "black", bmi2 = "black", do_act 
-                        = "black", chronic_mod = "black", funscore = "black", 
-                        soc_con = "black"),
-              strip.bg = c(age = "transparent", female = "grey", education = "transparent",  cogscore = "transparent", smoking = "transparent", 
-                           depression = 
-                          "transparent", drinking = "transparent", bmi2 = "transparent", do_act 
-                        = "transparent", chronic_mod = "transparent", funscore = "transparent", 
-                        soc_con = "transparent"),
-               main = "BN with Evidence")
-```
-
-```{r,fig.width=13}
-jf2 = setEvidence(junction, nodes = "drinking", states = "1")
-jf3 = setEvidence(junction, nodes = "drinking", states = "2")
-jf4 = setEvidence(junction, nodes = "drinking", states = "3")
-jf5 = setEvidence(junction, nodes = "drinking", states = "4")
-graphviz.chart(as.bn.fit(jf2,including.evidence = TRUE), grid = TRUE, 
-               bar.col = c(age = "black", female = "black", education = "black", 
-                           cogscore = "black", smoking = "black", depression = 
-                          "black", drinking = "grey", bmi2 = "black", do_act 
-                        = "black", chronic_mod = "black", funscore = "black", 
-                        soc_con = "black"),
-              strip.bg = c(age = "transparent", female = "transparent", education = "transparent",  cogscore = "transparent", smoking = "transparent", 
-                           depression = 
-                          "transparent", drinking = "grey", bmi2 = "transparent", do_act 
-                        = "transparent", chronic_mod = "transparent", funscore = "transparent", 
-                        soc_con = "transparent"),
-               main = "BN with Evidence, drinking 1")
-```
-
-
-
-```{r,fig.width=13}
-graphviz.chart(as.bn.fit(jf3,including.evidence = TRUE), grid = TRUE, 
-               bar.col = c(age = "black", female = "black", education = "black", 
-                           cogscore = "black", smoking = "black", depression = 
-                          "black", drinking = "grey", bmi2 = "black", do_act 
-                        = "black", chronic_mod = "black", funscore = "black", 
-                        soc_con = "black"),
-              strip.bg = c(age = "transparent", female = "transparent", education = "transparent",  cogscore = "transparent", smoking = "transparent", 
-                           depression = 
-                          "transparent", drinking = "grey", bmi2 = "transparent", do_act 
-                        = "transparent", chronic_mod = "transparent", funscore = "transparent", 
-                        soc_con = "transparent"),
-               main = "BN with Evidence, drinking 2")
-
-```
-
-
-```{r,fig.width=13}
-graphviz.chart(as.bn.fit(jf4,including.evidence = TRUE), grid = TRUE, 
-               bar.col = c(age = "black", female = "black", education = "black", 
-                           cogscore = "black", smoking = "black", depression = 
-                          "black", drinking = "grey", bmi2 = "black", do_act 
-                        = "black", chronic_mod = "black", funscore = "black", 
-                        soc_con = "black"),
-              strip.bg = c(age = "transparent", female = "transparent", education = "transparent",  cogscore = "transparent", smoking = "transparent", 
-                           depression = 
-                          "transparent", drinking = "grey", bmi2 = "transparent", do_act 
-                        = "transparent", chronic_mod = "transparent", funscore = "transparent", 
-                        soc_con = "transparent"),
-               main = "BN with Evidence, drinking 3")
-
-```
-
-
-```{r, fig.width=13}
-graphviz.chart(as.bn.fit(jf5,including.evidence = TRUE), grid = TRUE, 
-               bar.col = c(age = "black", female = "black", education = "black", 
-                           cogscore = "black", smoking = "black", depression = 
-                          "black", drinking = "grey", bmi2 = "black", do_act 
-                        = "black", chronic_mod = "black", funscore = "black", 
-                        soc_con = "black"),
-              strip.bg = c(age = "transparent", female = "transparent", education = "transparent",  cogscore = "transparent", smoking = "transparent", 
-                           depression = 
-                          "transparent", drinking = "grey", bmi2 = "transparent", do_act 
-                        = "transparent", chronic_mod = "transparent", funscore = "transparent", 
-                        soc_con = "transparent"),
-               main = "BN with Evidence, drinking 4")
-```
-
-
