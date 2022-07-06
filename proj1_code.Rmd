@@ -283,16 +283,11 @@ wave5.fin = subset(wave5, select = -c(adla, iadlza,
 
 ```
 
-```{r}
-ind13.1 <- !is.na(wave5$depression) & !is.na(wave5$female)
-p13.1 = ggplot(wave5[ind13.1,], aes(x = depression, fill = female)) + 
-  geom_bar()
-p13.1
-```
 
 
 
-Bayesian network code
+
+Bayesian network code (Section 5.1)
 ```{r, fig.width=5}
 ## black list
 myblacklist = matrix(c(
@@ -328,33 +323,30 @@ myblacklist = matrix(c(
                    "funscore", "chronic_mod"), 
                  byrow = TRUE, ncol=2, dimnames =list(NULL,c("from","to")))
 ## ci tests
-ci.test("female", "education", test = "mi", data = wave5.fin)
-ci.test("soc_con", "depression", test = "jt", data = wave5.fin)
-ci.test("smoking", "depression", test = "jt", data = wave5.fin)
-ci.test("smoking", "cogscore", test = "jt", data = wave5.fin)
-ci.test("do_act", "bmi2", test = "jt", data = wave5.fin)
-ci.test("drinking", "bmi2", test = "jt", data = wave5.fin)
-ci.test("soc_con", "female", test = "mi", data = wave5.fin)
-ci.test("depression", "cogscore", test = "jt", data = wave5.fin)
-ci.test("smoking", "chronic_mod", test = "jt", data = wave5.fin)
-ci.test("do_act", "chronic_mod", test = "jt", data = wave5.fin)
-ci.test("bmi2", "cogscore", test = "jt", data = wave5.fin)
-ci.test("age", "funscore", test = "jt", data = wave5.fin)
-ci.test("female", "do_act", test = "mi", data = wave5.fin)
-ci.test("age", "do_act", test = "jt", data = wave5.fin)
+ci.test("female", "education", test = "mi", data = wave5.fin) #p-value < 2.2e-16
+ci.test("soc_con", "depression", test = "jt", data = wave5.fin) #p-value = 0.9729
+ci.test("smoking", "depression", test = "jt", data = wave5.fin) #p-value = 0.01956
+ci.test("smoking", "cogscore", test = "jt", data = wave5.fin) #p-value < 2.2e-16
+ci.test("do_act", "bmi2", test = "jt", data = wave5.fin) #p-value < 2.2e-16
+ci.test("drinking", "bmi2", test = "jt", data = wave5.fin) #p-value < 2.2e-16
+ci.test("soc_con", "female", test = "mi", data = wave5.fin) #p-value = 2.253e-05
+ci.test("depression", "cogscore", test = "jt", data = wave5.fin) #p-value < 2.2e-16
+ci.test("smoking", "chronic_mod", test = "jt", data = wave5.fin) #p-value < 2.2e-16
+ci.test("do_act", "chronic_mod", test = "jt", data = wave5.fin) #p-value < 2.2e-16
+ci.test("bmi2", "cogscore", test = "jt", data = wave5.fin) #p-value = 0.1071
+ci.test("age", "funscore", test = "jt", data = wave5.fin) #p-value < 2.2e-16
+ci.test("female", "do_act", test = "mi", data = wave5.fin) #p-value < 2.2e-16
+ci.test("age", "do_act", test = "jt", data = wave5.fin) #p-value < 2.2e-16
 ## white list
 mywhitelist = matrix(c(
                    "female", "education",
-                   #"soc_con", "depression",
                    "smoking", "depression",
-                   #"smoking", "cogscore",
                    "do_act", "bmi2",
                    "drinking", "bmi2",
                    "female", "soc_con",
                    "depression", "cogscore",
                    "smoking", "chronic_mod",
                    "do_act", "chronic_mod",
-                   #"bmi2", "cogscore",
                    "age", "funscore",
                    "female", "do_act",
                    "age", "education",
@@ -369,117 +361,31 @@ mywhitelist = matrix(c(
 ## learn structure of DAG
 wave5.iamb =iamb(wave5.fin, whitelist = mywhitelist,blacklist = myblacklist)
 graphviz.plot(wave5.iamb)
-# wave5.pc =pc.stable(wave5.fin, whitelist = mywhitelist,blacklist = myblacklist)
-# graphviz.plot(wave5.pc)
-# wave5.gs =gs(wave5.fin, whitelist = mywhitelist,blacklist = myblacklist)
-# graphviz.plot(wave5.gs)
-# wave5.fiamb =fast.iamb(wave5.fin, whitelist = mywhitelist,blacklist = myblacklist)
-# graphviz.plot(wave5.fiamb)
-# wave5.int =inter.iamb(wave5.fin, whitelist = mywhitelist,blacklist = myblacklist)
-# graphviz.plot(wave5.int)
-# wave5.fdr =iamb.fdr(wave5.fin, whitelist = mywhitelist,blacklist = myblacklist)
-# graphviz.plot(wave5.fdr)
-# wave5.mmpc =mmpc(wave5.fin, whitelist = mywhitelist,blacklist = myblacklist)
-# graphviz.plot(wave5.mmpc)
-# wave5.si =si.hiton.pc(wave5.fin, whitelist = mywhitelist,blacklist = myblacklist)
-# graphviz.plot(wave5.si)
-# wave5.hpc =hpc(wave5.fin, whitelist = mywhitelist,blacklist = myblacklist)
-# graphviz.plot(wave5.hpc)
-## bn.fit
 bn.bayes = bn.fit(wave5.iamb, data=wave5.fin, method = "bayes", iss = 10)
 ```
 
+Local distributions (Section 5.2)
 
-```{r, fig.width=7}
-p1 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
-                     y=matrix(t(bn.bayes$cogscore$prob[,1,,1,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
-  geom_point() +
-  geom_line() +
-  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
-        labels=levels(wave5.fin$age)) +
-  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, No education, No depression, No smoking")
-
-
-p2 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
-                     y=matrix(t(bn.bayes$cogscore$prob[,2,,1,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
-  geom_point() +
-  geom_line() +
-  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
-        labels=levels(wave5.fin$age)) +
-  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, No education, No depression, No smoking")
-
-p3 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
-                     y=matrix(t(bn.bayes$cogscore$prob[,1,,2,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
-  geom_point() +
-  geom_line() +
-  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
-        labels=levels(wave5.fin$age)) +
-  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, Primary education, No depression, No smoking")
-
-p4 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
-                     y=matrix(t(bn.bayes$cogscore$prob[,2,,2,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
-  geom_point() +
-  geom_line() +
-  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
-        labels=levels(wave5.fin$age)) +
-  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Primary education, No depression, No smoking")
-p5 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
-                     y=matrix(t(bn.bayes$cogscore$prob[,1,,3,3,2]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
-  geom_point() +
-  geom_line() +
-  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
-        labels=levels(wave5.fin$age)) +
-  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, Gaodeng education, Depression 3, Smoking")
-
-
-p6 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
-                     y=matrix(t(bn.bayes$cogscore$prob[,2,,3,3,2]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
-  geom_point() +
-  geom_line() +
-  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
-        labels=levels(wave5.fin$age)) +
-  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Gaodeng education, Depression 3, Smoking")
-
-p7 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
-                     y=matrix(t(bn.bayes$cogscore$prob[,1,,3,4,2]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
-  geom_point() +
-  geom_line() +
-  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
-        labels=levels(wave5.fin$age)) +
-  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Male, Gaodeng education, Depressed, Smoking")
-
-p8 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
-                     y=matrix(t(bn.bayes$cogscore$prob[,2,,3,4,2]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
-  geom_point() +
-  geom_line() +
-  scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
-        labels=levels(wave5.fin$age)) +
-  labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Gaodeng education, Depressed, Smoking")
-grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, nrow = 4)
-```
-
-
-custom fit
+First, we need to use custom.fit to learn the local distributions via ordered logistic regression. 
 ```{r}
-dim(bn.bayes$cogscore$prob)
-# 3:cogscore 2:female 7:age 4: education 5:depression 4:bmi2 2:smoking
-```
-
-
-```{r}
+## check the dimensions of the probability matrix and corresponding variables
 dim(bn.bayes$cogscore$prob)
 # 3:cogscore 2:female 6:age 4: education 5:depression 4:drinking
 ```
+Fit the model of cognitive score using ordered logistic regression.
 ```{r}
+# fir for female
 olr.fitf =polr(cogscore ~ age + education + depression + drinking, data = wave5.fin[wave5.fin$female==1,])
+# fit for male
 olr.fitm =polr(cogscore ~ age + education + depression + drinking, data = wave5.fin[wave5.fin$female==0,])
+# extract levels of each variable
 edu.lv = levels(wave5.fin$education)
 age.lv = levels(wave5.fin$age)
 f.lv = levels(wave5.fin$female)
 d.lv = levels(wave5.fin$depression)
 dr.lv = levels(wave5.fin$drinking)
 cs.lv = levels(wave5.fin$cogscore)
-
+# create a data frame having all combinations of all independent variables
 combos = data.frame(
 age=rep(age.lv, length(edu.lv)),
 education=rep(edu.lv,each = length(age.lv)),
@@ -488,19 +394,21 @@ length(age.lv)*length(edu.lv)),
 drinking=rep(dr.lv, each =
 length(age.lv)*length(edu.lv)*length(d.lv))
 )
+# predict the probabilities in every situation
 distcsf = predict(olr.fitf, newdata= combos ,type="p")
 distcsm = predict(olr.fitm, newdata= combos ,type="p")
+# convert the results above into the format of bn.fit
 distcs = array(dim = c(length(cs.lv), length(f.lv), length(age.lv), length(edu.lv), length(d.lv), length(dr.lv)), dimnames = list(cogscore = cs.lv, female = f.lv,  age = age.lv, education = edu.lv, depression = d.lv, drinking = dr.lv))
 distcs[,1,,,,] = array(t(distcsm), dim=c(length(cs.lv),1, length(age.lv),  length(edu.lv), length(d.lv), length(dr.lv)))
 distcs[,2,,,,] = array(t(distcsf), dim=c(length(cs.lv),1, length(age.lv),  length(edu.lv), length(d.lv), length(dr.lv)))
-
+# custom fit finished
 bn.bayes2 = bn.bayes
 bn.bayes2$cogscore = distcs
-
-#bn.fit.barchart(bn.bayes2$cogscore)
 ```
 
-```{r}
+
+Plot of cognitive score and education (Section 5.2.1)
+```{r,fig.width=5}
 p1 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
                      y=matrix(t(bn.bayes2$cogscore$prob[,1,,1,1,1]), ncol =1), color = rep(levels(wave5.fin$cogscore), each = length(levels(wave5.fin$age))))) + 
   geom_point() +
@@ -563,39 +471,48 @@ p8 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
   scale_x_discrete(breaks=seq(1:length(levels(wave5.fin$age))),
         labels=levels(wave5.fin$age)) +
   labs(x = "Age", y= "Conditional probability", color = "Cognitive score", title ="Female, Tertiary education, No depression, No drinking")
-```
 
-
-```{r,fig.width=5}
 grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8,  nrow = 4)
 ```
+Below is the calculations of the improvement of the probabilities of having high cognitive score for males.
 
+The improvement for females, from no education to basic education, in all age groups
 ```{r}
-bn.bayes2$cogscore$prob[,1,,1,1,1]
-bn.bayes2$cogscore$prob[,1,,2,1,1]
-bn.bayes2$cogscore$prob[,1,,3,1,1]
-bn.bayes2$cogscore$prob[,1,,4,1,1]
-# bn.bayes2$cogscore$prob[,1,,1,1,1][3,]/(bn.bayes2$cogscore$prob[,1,,1,1,1][2,]+bn.bayes2$cogscore$prob[,1,,1,1,1][1,])
-# bn.bayes2$cogscore$prob[,1,,2,1,1][3,]/(bn.bayes2$cogscore$prob[,1,,2,1,1][2,]+bn.bayes2$cogscore$prob[,1,,2,1,1][1,])
-# bn.bayes2$cogscore$prob[,1,,3,1,1][3,]/(bn.bayes2$cogscore$prob[,1,,3,1,1][2,]+bn.bayes2$cogscore$prob[,1,,3,1,1][1,])
-# bn.bayes2$cogscore$prob[,1,,4,1,1][3,]/(bn.bayes2$cogscore$prob[,1,,4,1,1][2,]+bn.bayes2$cogscore$prob[,1,,4,1,1][1,])
+(bn.bayes2$cogscore$prob[,2,,2,1,1][3,] - bn.bayes2$cogscore$prob[,2,,1,1,1][3,])/bn.bayes2$cogscore$prob[,2,,1,1,1][3,]
 ```
 
+The improvement for males, from no education to basic education, in all age groups
 ```{r}
-bn.bayes2$cogscore$prob[,2,,1,1,1]
-bn.bayes2$cogscore$prob[,2,,2,1,1]
-bn.bayes2$cogscore$prob[,2,,3,1,1]
-bn.bayes2$cogscore$prob[,2,,4,1,1]
-# bn.bayes2$cogscore$prob[,2,,1,1,1][3,]/(bn.bayes2$cogscore$prob[,2,,1,1,1][2,]+bn.bayes2$cogscore$prob[,1,,1,1,1][1,])
-# bn.bayes2$cogscore$prob[,2,,2,1,1][3,]/(bn.bayes2$cogscore$prob[,2,,2,1,1][2,]+bn.bayes2$cogscore$prob[,2,,2,1,1][1,])
-# bn.bayes2$cogscore$prob[,2,,3,1,1][3,]/(bn.bayes2$cogscore$prob[,2,,3,1,1][2,]+bn.bayes2$cogscore$prob[,1,,3,1,1][1,])
-# bn.bayes2$cogscore$prob[,2,,4,1,1][3,]/(bn.bayes2$cogscore$prob[,2,,4,1,1][2,]+bn.bayes2$cogscore$prob[,2,,4,1,1][1,])
+(bn.bayes2$cogscore$prob[,1,,2,1,1][3,] - bn.bayes2$cogscore$prob[,1,,1,1,1][3,])/bn.bayes2$cogscore$prob[,1,,1,1,1][3,]
 ```
 
+The improvement for females, from basic education to secondary education, in all age groups
 ```{r}
-(bn.bayes2$cogscore$prob[,2,,2,1,1] - bn.bayes2$cogscore$prob[,2,,1,1,1])/bn.bayes2$cogscore$prob[,2,,1,1,1]
+(bn.bayes2$cogscore$prob[,2,,3,1,1][3,] - bn.bayes2$cogscore$prob[,2,,2,1,1][3,])/bn.bayes2$cogscore$prob[,2,,2,1,1][3,]
 ```
 
+The improvement for males, from basic education to secondary education, in all age groups
+```{r}
+(bn.bayes2$cogscore$prob[,1,,3,1,1][3,] - bn.bayes2$cogscore$prob[,1,,2,1,1][3,])/bn.bayes2$cogscore$prob[,1,,2,1,1][3,]
+```
+
+The improvement for females, from secondary education to tertiary education, in all age groups
+```{r}
+(bn.bayes2$cogscore$prob[,2,,4,1,1][3,] - bn.bayes2$cogscore$prob[,2,,3,1,1][3,])/bn.bayes2$cogscore$prob[,2,,3,1,1][3,]
+```
+
+The improvement for males, from basic education to secondary education, in all age groups
+```{r}
+(bn.bayes2$cogscore$prob[,1,,4,1,1][3,] - bn.bayes2$cogscore$prob[,1,,3,1,1][3,])/bn.bayes2$cogscore$prob[,1,,3,1,1][3,]
+```
+ 
+The probabilities of getting low cognitive score for men aged 85 years and older in the selected depression level and drinking behavior groups 
+```{r}
+bn.bayes2$cogscore$prob[,1,,1,1,1][1,6] #0.47011
+bn.bayes2$cogscore$prob[,1,,2,1,1][1,6] #0.2269042
+bn.bayes2$cogscore$prob[,1,,3,1,1][1,6] #0.1148473
+bn.bayes2$cogscore$prob[,1,,4,1,1][1,6] #0.05910975
+```
 
 ```{r,fig.width=7}
 p9 = ggplot(mapping = aes(x = rep(seq(1:length(levels(wave5.fin$age))),3),
